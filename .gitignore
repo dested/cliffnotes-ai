@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.cliffnotes-cache.json
+*.log
+.env

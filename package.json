@@ -1,0 +1,27 @@
+{
+  "name": "cliffnotes",
+  "version": "1.0.0",
+  "description": "Generate comprehensive codebase summaries for AI context",
+  "type": "module",
+  "bin": {
+    "cliffnotes": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "dev": "bun run ./src/index.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.0.0",
+    "ai": "^4.0.0",
+    "glob": "^11.0.0",
+    "ignore": "^6.0.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
