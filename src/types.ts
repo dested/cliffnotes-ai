@@ -22,6 +22,19 @@ export type FileCategory =
   | "test"        // Test files
   | "other";
 
+export interface FolderInfo {
+  path: string;           // Relative path from root (e.g., "src/routers")
+  name: string;           // Folder name (e.g., "routers")
+  files: FileAnalysis[];  // Files directly in this folder
+  subfolders: string[];   // Names of immediate subfolders that have CLIFFNOTES.md
+  depth: number;          // Depth from root (0 = root)
+}
+
+export interface FolderTree {
+  folders: Map<string, FolderInfo>;
+  root: string;
+}
+
 export interface CacheEntry {
   hash: string;
   summary: string;

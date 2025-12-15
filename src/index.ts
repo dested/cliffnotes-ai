@@ -4,9 +4,9 @@ import { resolve, join } from "path";
 import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
 import { loadCache, saveCache } from "./cache.js";
-import { discoverFiles } from "./discovery.js";
+import { discoverFiles, buildFolderTree, getFoldersWithContent } from "./discovery.js";
 import { analyzeFiles, calculateCost } from "./analyzer.js";
-import { generateCliffnotes, writeCliffnotes } from "./output.js";
+import { writeAllCliffnotes, writeContextFinderAgent } from "./output.js";
 import { DEFAULT_CONFIG, type CliffnotesConfig } from "./types.js";
 
 /**
@@ -113,8 +113,6 @@ Set it via:
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--concurrency" || args[i] === "-c") {
       config.concurrency = parseInt(args[++i], 10);
-    } else if (args[i] === "--output" || args[i] === "-o") {
-      config.outputFile = args[++i];
     }
   }
 
@@ -157,13 +155,18 @@ ${colors.dim}Generating AI-friendly codebase summary...${colors.reset}
   // Calculate cost
   const cost = calculateCost(analyses);
 
-  // Generate output
-  log(`\n${colors.bright}Generating CLIFFNOTES.md...${colors.reset}`);
-  const content = generateCliffnotes(analyses, cost, { cached, analyzed });
+  // Build folder tree
+  log(`\n${colors.bright}Building folder hierarchy...${colors.reset}`);
+  const tree = buildFolderTree(analyses);
+  const foldersWithContent = getFoldersWithContent(tree);
 
-  // Write output
-  const outputPath = resolve(rootDir, config.outputFile);
-  await writeCliffnotes(outputPath, content);
+  // Generate hierarchical CLIFFNOTES.md files
+  log(`${colors.bright}Generating CLIFFNOTES.md files...${colors.reset}`);
+  const foldersWritten = await writeAllCliffnotes(rootDir, foldersWithContent, cost, { cached, analyzed });
+
+  // Generate the context-finder agent
+  log(`${colors.bright}Generating context-finder agent...${colors.reset}`);
+  await writeContextFinderAgent(rootDir);
 
   // Save cache
   await saveCache(cachePath, cache);
@@ -172,16 +175,22 @@ ${colors.dim}Generating AI-friendly codebase summary...${colors.reset}
 
   // Print summary
   log(`
-${colors.green}✓ Done!${colors.reset} Generated ${colors.bright}${config.outputFile}${colors.reset}
+${colors.green}✓ Done!${colors.reset} Generated ${colors.bright}${foldersWritten} CLIFFNOTES.md${colors.reset} files
 
 ${colors.bright}Summary:${colors.reset}
   ${colors.cyan}Files analyzed:${colors.reset} ${analyzed} (${cached} from cache)
+  ${colors.cyan}Folders with notes:${colors.reset} ${foldersWritten}
   ${colors.cyan}Input tokens:${colors.reset}  ${cost.inputTokens.toLocaleString()}
   ${colors.cyan}Output tokens:${colors.reset} ${cost.outputTokens.toLocaleString()}
   ${colors.cyan}Estimated cost:${colors.reset} ${colors.yellow}$${cost.estimatedCost.toFixed(4)}${colors.reset}
   ${colors.cyan}Time elapsed:${colors.reset}  ${elapsed}s
 
-${colors.dim}Cache saved to ${config.cacheFile}${colors.reset}
+${colors.bright}Generated files:${colors.reset}
+  ${colors.cyan}Root:${colors.reset}  CLIFFNOTES.md
+  ${colors.cyan}Agent:${colors.reset} .claude/agents/context-finder.md
+  ${colors.cyan}Cache:${colors.reset} ${config.cacheFile}
+
+${colors.dim}Each subfolder also has its own CLIFFNOTES.md${colors.reset}
 `);
 }
 
@@ -189,14 +198,13 @@ function printHelp() {
   log(`
 ${colors.bright}📚 Cliffnotes Generator${colors.reset}
 
-Generate AI-friendly codebase summaries using Claude Opus 4.5.
+Generate hierarchical AI-friendly codebase summaries using Claude Opus 4.5.
 
 ${colors.bright}Usage:${colors.reset}
   bunx cliffnotes [directory] [options]
 
 ${colors.bright}Options:${colors.reset}
   -c, --concurrency <n>  Number of parallel AI calls (default: 5)
-  -o, --output <file>    Output file name (default: CLIFFNOTES.md)
   -h, --help             Show this help message
 
 ${colors.bright}Environment:${colors.reset}
@@ -206,11 +214,17 @@ ${colors.bright}Examples:${colors.reset}
   bunx cliffnotes                    # Analyze current directory
   bunx cliffnotes ./my-project       # Analyze specific directory
   bunx cliffnotes -c 10              # Use 10 parallel calls
-  bunx cliffnotes -o DOCS.md         # Custom output file
 
-${colors.bright}Files:${colors.reset}
-  CLIFFNOTES.md          Generated summary (commit this!)
-  .cliffnotes-cache.json Hash cache for incremental updates (gitignore this)
+${colors.bright}Generated Files:${colors.reset}
+  CLIFFNOTES.md                     Root summary (commit this!)
+  <folder>/CLIFFNOTES.md            Per-folder context files
+  .claude/agents/context-finder.md  AI agent for navigation
+  .cliffnotes-cache.json            Hash cache (gitignore this)
+
+${colors.bright}How it works:${colors.reset}
+  1. Generates a CLIFFNOTES.md in each folder with source files
+  2. Each file describes contents and points to subfolders
+  3. The context-finder agent navigates the hierarchy to find relevant files
 `);
 }
 
