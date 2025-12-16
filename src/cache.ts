@@ -49,3 +49,21 @@ export function setCacheEntry(
 export function isCacheValid(entry: CacheEntry | undefined, currentHash: string): boolean {
   return entry !== undefined && entry.hash === currentHash;
 }
+
+/**
+ * Remove cache entries for files that no longer exist.
+ * Returns the list of removed file paths.
+ */
+export function pruneCache(cache: CacheData, currentFiles: string[]): string[] {
+  const currentFileSet = new Set(currentFiles);
+  const removedPaths: string[] = [];
+
+  for (const cachedPath of Object.keys(cache.entries)) {
+    if (!currentFileSet.has(cachedPath)) {
+      delete cache.entries[cachedPath];
+      removedPaths.push(cachedPath);
+    }
+  }
+
+  return removedPaths;
+}

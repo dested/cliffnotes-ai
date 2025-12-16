@@ -3,7 +3,7 @@
 import { resolve, join } from "path";
 import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
-import { loadCache, saveCache } from "./cache.js";
+import { loadCache, saveCache, pruneCache } from "./cache.js";
 import { discoverFiles, buildFolderTree, getFoldersWithContent } from "./discovery.js";
 import { analyzeFiles, calculateCost } from "./analyzer.js";
 import { writeAllCliffnotes, writeContextFinderAgent } from "./output.js";
@@ -138,6 +138,13 @@ ${colors.dim}Generating AI-friendly codebase summary...${colors.reset}
   const cache = await loadCache(cachePath);
   const cachedCount = Object.keys(cache.entries).length;
   log(`${colors.cyan}💾 Cached entries:${colors.reset} ${cachedCount}`);
+
+  // Prune cache entries for deleted files
+  const currentFilePaths = files.map(f => f.relative);
+  const removedFromCache = pruneCache(cache, currentFilePaths);
+  if (removedFromCache.length > 0) {
+    log(`${colors.yellow}🗑️  Removed ${removedFromCache.length} stale cache entries${colors.reset}`);
+  }
 
   log(`\n${colors.bright}Analyzing files...${colors.reset}\n`);
 
